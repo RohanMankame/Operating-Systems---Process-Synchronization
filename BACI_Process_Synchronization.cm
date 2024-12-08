@@ -1,0 +1,434 @@
+// Name: Fardeen Shahed, Rohan Mankame
+// Email: fks5173@psu.edu, rym5387@psu.edu
+// Class: CMPSC 472-002, Fall 2024
+// Homework 4
+// Thanksgiving Synchronization Problem
+
+// Semaphore initialization
+semaphore mutex;               // Protect shared variables
+semaphore hayride_ready;       // Signal hayride completion
+semaphore all_done_eating;     // Signal everyone is excused from the table
+semaphore mother_hayride;      // Signal Child 8's readiness for hayride
+semaphore seated_mutex;        // Protect seated_count
+semaphore all_seated;          // Signal when everyone is seated
+semaphore turkey_carved;       // Signal that turkey has been carved
+semaphore done_eating;         // Signal that everyone is done eating
+
+// Shared variables
+int waiting_children = 0;      // Number of waiting children
+int waiting_adults = 0;        // Number of waiting relatives
+int eating_count = 0;          // Counter for participants done eating
+int seated_count = 0;          // Counter for seated participants
+int DELAY = 100;
+
+int childArr[9];
+int revArr[7];
+
+semaphore print = 1;
+semaphore aDone[7];
+
+// Delay Procedure
+void Delay() {
+    int i;
+    int DelayTime;
+    DelayTime = random(DELAY);
+    for (i = 0; i < DelayTime; i++);
+}
+
+// Synchronize Eating
+void SynchronizeEating() {
+    wait(mutex);
+    eating_count = eating_count + 1;
+    if (eating_count == 16) {
+        signal(done_eating);
+    }
+    signal(mutex);
+}
+
+// Mother Procedure
+void Mother() {
+    wait(print);
+    cout << "Mother is making the meal.\n";
+    signal(print);
+    Delay();
+
+    wait(mother_hayride);       // Wait for Child 8 to finish raking
+	wait(print);
+    cout << "Mother is waiting for hayride.\n";
+	signal(print);
+    wait(hayride_ready);        // Join the hayride
+	wait(print);
+    cout << "Mother is sitting at the table.\n";
+	signal(print);
+
+    wait(seated_mutex);
+    seated_count = seated_count + 1;
+    if (seated_count == 16) signal(all_seated);
+    signal(seated_mutex);
+
+    wait(turkey_carved);         // Wait for turkey to be carved
+	wait(print);
+    cout << "Mother is eating.\n";
+	signal(print);
+    Delay();
+	wait(print);
+    cout << "Mother is done eating.\n";
+	signal(print);
+
+    SynchronizeEating();
+
+    wait(all_done_eating);      // Wait to be excused from the table
+wait(print);
+    cout << "Mother goes to read her book.\n";
+signal(print);
+}
+
+int RemoveRev(int index) 
+{
+	int Rv;
+	int temp;
+	int i;
+	
+	for (i = 0; i<= 6; i++)
+		{
+		if (revArr[i] != 0) 
+			{
+			Rv = revArr[i];
+        		temp = Rv;
+        		revArr[i] = 0;
+        		return temp;
+			}
+    		}
+		
+	return 0;
+}
+
+
+
+int RemoveChild(int index) 
+{
+	int Ch;
+	int temp;
+	int i;
+	
+	for (i = 0; i<= 8; i++)
+		{
+		if (childArr[i] != 0) 
+			{
+			Ch = childArr[i];
+        		temp = Ch;
+        		childArr[i] = 0;
+        		return temp;
+			}
+    		}
+		
+	return 0;
+}
+
+
+// Father Procedure
+void Father() {
+	int Child1;
+	int Child2;
+	int Child3;
+	int Child4;
+	int Child5;
+	int Child6;
+	int Child7;
+
+	int rev1;
+	int rev2;
+	int rev3;
+	int rev4;
+	int rev5;
+	int rev6;
+	
+    int i;
+    int total;
+	wait(print);
+    cout << "Father is ready to give hayrides.\n";
+	signal(print);
+    Delay();
+
+    while (1) {
+        wait(mutex); // Protect shared variables
+
+        // Check if any participants are waiting
+        if (waiting_children + waiting_adults == 0) {
+            signal(mutex);
+            break; // Exit the loop if no one is waiting
+        }
+
+        // Form groups for hayrides
+
+        if (waiting_children >= 3) {
+		Child1 = RemoveChild(0);
+		Child2 = RemoveChild(0);
+		Child3 = RemoveChild(0);
+            waiting_children  = waiting_children - 3;
+            signal(mutex);
+		wait(print);
+
+            cout << "Father gives hayride to Child"<< Child1 <<",Child "<< Child2 << ",and Child "<< Child3<<". \n";
+		signal(print);
+            for (i = 0; i < 3; i++) signal(hayride_ready);
+        } 
+
+	else if (waiting_children >= 2 && waiting_adults >= 1) 
+	{
+		Child4 = RemoveChild(0);
+		Child5 = RemoveChild(0);
+		rev1 = RemoveRev(0);
+            	waiting_children = waiting_children - 2;
+            	waiting_adults = waiting_adults - 1;
+		
+            	signal(mutex);
+		wait(print);
+            	cout << "Father gives hayride to Child"<< 
+Child4 <<",Child "<< Child5 << ",and Relative "<< rev1 << ". \n";
+		signal(print);
+
+		
+            for (i = 0; i < 3; i++) signal(hayride_ready);
+		signal(aDone[rev1]);
+        } 
+
+	
+
+	else if (waiting_adults >= 2) 
+	{
+		rev5 = RemoveRev(0);
+		rev6 = RemoveRev(0);
+            waiting_adults = waiting_adults - 2;
+            signal(mutex);
+		wait(print);
+            cout << "Father gives hayride to Relative "<< rev5 << ",and Relative "<< rev6 <<". \n";
+		signal(print);
+
+            for (i = 0; i < 2; i++) signal(hayride_ready);
+		signal(aDone[rev5]);
+		signal(aDone[rev6]);
+
+        } else {
+            // Handle leftovers
+            total = waiting_children + waiting_adults;
+            if (total > 0) {
+		wait(print);
+                cout << "Father gives a final hayride.\n";
+		signal(print);
+                for (i = 0; i < total; i++) signal(hayride_ready);
+                waiting_children = 0;
+                waiting_adults = 0;
+            }
+            signal(mutex);
+            break; // Exit loop
+        }
+
+        Delay(); // Simulate time for the hayride
+    }
+	wait(print);
+    cout << "Father gives hayride to Mother and Child 8.\n";
+	signal(print);
+    Delay();
+    signal(hayride_ready); // Signal for Mother
+    signal(hayride_ready); // Signal for Child 8
+
+	wait(print);
+    cout << "Father is unhooking horses and feeding them.\n";
+	signal(print);
+    Delay();
+	wait(print);
+    cout << "Father is going into the house and cleaning up for dinner.\n";
+	signal(print);
+    Delay();
+	wait(print);
+    cout << "Father is sitting at the table.\n";
+	signal(print);
+
+    wait(seated_mutex);
+    seated_count = seated_count + 1;
+    if (seated_count == 16) signal(all_seated);
+    signal(seated_mutex);
+
+    wait(all_seated);
+
+	wait(print);
+    cout << "Father carves the turkey.\n";
+	signal(print);
+
+    // Signal turkey_carved to all participants
+    for (i = 0; i < 16; i = i + 1) {
+        signal(turkey_carved);
+    }
+	wait(print);
+    cout << "Father is eating.\n";
+	signal(print);
+    Delay();
+	wait(print);
+    cout << "Father is done eating.\n";
+	signal(print);
+
+    SynchronizeEating();
+
+    wait(done_eating);
+	wait(print);
+    cout << "Father excuses everyone from the table.\n";
+	signal(print);
+
+    // Signal all_done_eating to all participants
+    for (i = 0; i < 16; i = i + 1) {
+        signal(all_done_eating);
+    }
+	wait(print);
+    cout << "Father goes to watch football.\n";
+	signal(print);
+}
+
+
+
+
+
+
+
+
+
+// Child Procedure
+void Child(int id) {
+	int newChild;
+	wait(print);
+    cout << "Child " << id << " is raking leaves.\n";
+	signal(print);
+    Delay();
+
+    if (id == 8) {
+        signal(mother_hayride); // Notify Mother that raking is done
+	wait(print);
+        cout << "Child " << id << " is waiting for hayride.\n";
+	signal(print);
+
+	childArr[id] = id;		/////////////////
+
+        wait(hayride_ready);   // Wait for hayride with Mother
+    } else {
+	wait(print);
+        cout << "Child " << id << " is waiting for hayride.\n";
+	signal(print);
+	
+	childArr[id] = id;		////////////////
+
+        wait(mutex);
+        waiting_children = waiting_children + 1;
+        signal(mutex);
+        wait(hayride_ready);   // Wait for hayride
+    }
+	wait(print);
+    cout << "Child " << id << " is sitting at the table.\n";
+	signal(print);
+
+    wait(seated_mutex);
+    seated_count = seated_count + 1;
+    if (seated_count == 16) signal(all_seated);
+    signal(seated_mutex);
+
+    wait(turkey_carved);         // Wait for turkey to be carved
+	wait(print);
+    cout << "Child " << id << " is eating.\n";
+	signal(print);
+    Delay();
+	wait(print);
+    cout << "Child " << id << " is done eating.\n";
+	signal(print);
+    SynchronizeEating();
+
+    wait(all_done_eating);      // Wait to be excused from the table
+	wait(print);
+
+    cout << "Child " << id << " goes out to play.\n";
+	signal(print);
+}
+
+// Relative Procedure
+void Relative(int id) {
+	wait(print);
+    cout << "Relative " << id << " arrives.\n";
+	signal(print);
+
+	wait(print);
+    cout << "Relative " << id << " is waiting for hayride.\n";
+	signal(print);
+
+	revArr[id] = id;
+
+    wait(mutex);
+    waiting_adults = waiting_adults + 1;
+    signal(mutex);
+
+    wait(hayride_ready);        // Wait for hayride
+	wait(aDone[id]);
+	wait(print);
+    cout << "Relative " << id << " is sitting at the table.\n";
+	signal(print);
+
+    wait(seated_mutex);
+    seated_count = seated_count + 1;
+    if (seated_count == 16) signal(all_seated);
+    signal(seated_mutex);
+
+    wait(turkey_carved);         // Wait for turkey to be carved
+    
+	wait(print);
+    cout << "Relative " << id << " is eating.\n";
+	signal(print);
+    Delay();
+	wait(print);
+    cout << "Relative " << id << " is done eating.\n";
+	signal(print);
+
+    SynchronizeEating();
+
+
+    wait(all_done_eating);      // Wait to be excused from the table
+	wait(print);
+    cout << "Relative " << id << " goes home.\n";
+	signal(print);
+}
+
+// Main Program
+void main() {
+    // Semaphore initialization
+    initialsem(mutex, 1);
+    initialsem(hayride_ready, 0);
+    initialsem(all_done_eating, 0);
+    initialsem(mother_hayride, 0);
+    initialsem(seated_mutex, 1);
+    initialsem(all_seated, 0);
+    initialsem(turkey_carved, 0);
+    initialsem(done_eating, 0);
+
+    // Initialize shared variables
+    waiting_children = 0;
+    waiting_adults = 0;
+    eating_count = 0;
+    seated_count = 0;
+
+
+	childArr[0]=0;
+	childArr[1]=0;
+	childArr[2]=0;
+	childArr[3]=0;
+	childArr[4]=0;
+	childArr[5]=0;
+	childArr[6]=0;
+	childArr[7]=0;
+	childArr[8]=0;
+
+
+    // Start concurrent processes
+    cobegin {
+        Mother();
+        Father();
+        Child(1); Child(2); Child(3); Child(4); Child(5); Child(6); Child(7); Child(8);
+        Relative(1); Relative(2); Relative(3); Relative(4); Relative(5); Relative(6);
+    }
+}
+
