@@ -1,6 +1,7 @@
 # Operating-Systems---Process-Synchronization
 
-Coded in C-mini
+Developed a C-mini program simulating a Thanksgiving family gathering with concurrent processes.  This project involved implementing classical synchronization problems like producer-consumer and dining philosophers using semaphores to coordinate actions such as meal preparation, hayrides, and dinner time. The program ensured that shared resources were accessed in a controlled manner, preventing deadlocks and race conditions
+
 
 Task:
 
